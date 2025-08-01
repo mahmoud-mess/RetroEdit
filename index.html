@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Hex Editor</title>
+    <style>
+        /* General Body and Background */
+        body {
+            font-family: 'MS Sans Serif', 'Arial', sans-serif;
+            background-color: #008080;
+            color: black;
+            padding: 20px;
+        }
+        
+        /* Main Container - The "Window" */
+        .window {
+            background-color: #C0C0C0;
+            border-top: 2px solid #FFFFFF;
+            border-left: 2px solid #FFFFFF;
+            border-bottom: 2px solid #808080;
+            border-right: 2px solid #808080;
+            padding: 2px;
+            box-shadow: 1px 1px 0 black;
+        }
+
+        .window-body {
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-bottom: 2px solid #FFFFFF;
+            border-right: 2px solid #FFFFFF;
+            background-color: #C0C0C0;
+            padding: 10px;
+        }
+
+        /* Title Bar */
+        .title-bar {
+            background-color: #000080;
+            color: white;
+            font-weight: bold;
+            padding: 2px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title-bar-text {
+            padding-left: 4px;
+        }
+
+        .title-bar-controls {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .title-bar-controls button {
+            background-color: #C0C0C0;
+            border-top: 2px solid #FFFFFF;
+            border-left: 2px solid #FFFFFF;
+            border-bottom: 2px solid #808080;
+            border-right: 2px solid #808080;
+            width: 16px;
+            height: 14px;
+            font-family: 'MS Sans Serif', 'Arial', sans-serif;
+            font-size: 8px;
+            line-height: 1;
+        }
+        
+        /* Buttons and Inputs */
+        button, input[type="file"] {
+            font-family: 'MS Sans Serif', 'Arial', sans-serif;
+            font-size: 11px;
+            background-color: #C0C0C0;
+            border-top: 2px solid #FFFFFF;
+            border-left: 2px solid #FFFFFF;
+            border-bottom: 2px solid #808080;
+            border-right: 2px solid #808080;
+            padding: 4px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            box-shadow: 1px 1px 0 black;
+        }
+
+        button:active {
+            background-color: #C0C0C0;
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-bottom: 2px solid #FFFFFF;
+            border-right: 2px solid #FFFFFF;
+            box-shadow: inset 1px 1px 0 black;
+        }
+
+        input[type="file"] {
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-bottom: 2px solid #FFFFFF;
+            border-right: 2px solid #FFFFFF;
+            padding: 2px;
+        }
+
+        /* Hex Editor Grid */
+        .hex-editor-grid {
+            display: grid;
+            grid-template-columns: 70px repeat(16, 20px) 10px repeat(16, 12px);
+            gap: 1px;
+            font-size: 13px;
+        }
+
+        .hex-editor-grid-header {
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .address, .hex-input, .char-input {
+            font-family: 'Courier New', monospace;
+            border: 1px inset #808080;
+            background-color: #FFFFFF;
+            color: black;
+            text-align: center;
+            padding: 1px;
+        }
+        
+        .address {
+            background-color: #C0C0C0;
+            border: 1px solid transparent;
+            text-align: right;
+            color: black;
+            font-weight: bold;
+        }
+        
+        .hex-input, .char-input {
+            border: 1px solid #808080;
+        }
+
+        .separator {
+            width: 100%;
+            background-color: #C0C0C0;
+        }
+    </style>
+</head>
+<body>
+    <div class="window">
+        <div class="title-bar">
+            <div class="title-bar-text">Retro Hex Editor</div>
+            <div class="title-bar-controls">
+                <button>-</button>
+                <button>&#9723;</button>
+                <button>x</button>
+            </div>
+        </div>
+        <div class="window-body">
+            <p>Select a file, edit the hex or character values, and save your changes.</p>
+    
+            <div style="margin-bottom: 10px;">
+                <input type="file" id="fileInput"/>
+                <button id="loadButton">Load File</button>
+                <button id="saveButton" style="display: none;">Save File</button>
+            </div>
+
+            <div id="status"></div>
+
+            <div style="overflow-x: auto;">
+                <div id="headerRow" class="hex-editor-grid" style="border-bottom: 1px solid black; padding-bottom: 5px;">
+                    <div class="hex-editor-grid-header">Address</div>
+                    <div class="hex-editor-grid-header">00</div>
+                    <div class="hex-editor-grid-header">01</div>
+                    <div class="hex-editor-grid-header">02</div>
+                    <div class="hex-editor-grid-header">03</div>
+                    <div class="hex-editor-grid-header">04</div>
+                    <div class="hex-editor-grid-header">05</div>
+                    <div class="hex-editor-grid-header">06</div>
+                    <div class="hex-editor-grid-header">07</div>
+                    <div class="hex-editor-grid-header">08</div>
+                    <div class="hex-editor-grid-header">09</div>
+                    <div class="hex-editor-grid-header">0A</div>
+                    <div class="hex-editor-grid-header">0B</div>
+                    <div class="hex-editor-grid-header">0C</div>
+                    <div class="hex-editor-grid-header">0D</div>
+                    <div class="hex-editor-grid-header">0E</div>
+                    <div class="hex-editor-grid-header">0F</div>
+                    <div class="hex-editor-grid-header"></div>
+                    <div class="hex-editor-grid-header">ASCII</div>
+                </div>
+                <div id="editorContent" style="min-width: max-content;">
+                    <p style="text-align: center;">Select a file to begin.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
