@@ -1,4 +1,4 @@
-// --- script.js ---
+// --- script.js (Firefox Compatible) ---
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveButton = document.getElementById('saveButton');
     const editorContent = document.getElementById('editorContent');
     const controlsContainer = document.getElementById('controls-container');
+    const vizCanvas = document.getElementById('vizCanvas');
+    const vizMode = document.getElementById('vizMode');
+    const vizWidth = document.getElementById('vizWidth');
 
     // Status Bar Elements
     const statusFilename = document.getElementById('status-filename');
@@ -44,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.buffer = e.target.result;
             state.totalBytes = state.buffer.byteLength;
             renderHexEditor();
+            renderVisualization();
             saveButton.disabled = false;
             updateStatus(`File '${state.fileName}' loaded successfully.`);
             updateStatusBar();
@@ -71,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateStatus(`File saved as 'edited_${state.fileName}'.`);
     });
+
+    // Visualization event listeners
+    vizMode.addEventListener('change', renderVisualization);
+    vizWidth.addEventListener('change', renderVisualization);
 
     // Hex Editor Rendering and Logic
     function renderHexEditor() {
@@ -127,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
         row.appendChild(separator);
         
         asciiInput.value = asciiRowText;
-        asciiInput.addEventListener('input', e => handleAsciiCharInput(e));
-        asciiInput.addEventListener('keydown', e => handleAsciiNavigation(e));
+        asciiInput.addEventListener('input', e => handleAsciiInput(e, offset));
+        asciiInput.addEventListener('keydown', e => handleNavigation(e));
         asciiInput.addEventListener('focus', () => setActiveCell(offset, 'ascii'));
         asciiInput.addEventListener('blur', () => state.activeOffset = -1);
 
@@ -147,11 +155,172 @@ document.addEventListener('DOMContentLoaded', () => {
         hexInput.setAttribute('data-offset', byteOffset);
         
         hexInput.addEventListener('input', e => handleHexInput(e, byteOffset));
-        hexInput.addEventListener('keydown', e => handleHexNavigation(e));
+        hexInput.addEventListener('keydown', e => handleNavigation(e));
         hexInput.addEventListener('focus', () => setActiveCell(byteOffset, 'hex'));
         hexInput.addEventListener('blur', () => state.activeOffset = -1);
 
         return hexInput;
+    }
+
+    // Visualization Functions (Firefox Compatible)
+    function renderVisualization() {
+        console.log('renderVisualization called, buffer exists:', !!state.buffer);
+        
+        // Clear canvas
+        vizCanvas.innerHTML = '';
+
+        if (!state.buffer) {
+            vizCanvas.innerHTML = '<p style="text-align: center; color: #808080; margin-top: 50px;">Load a file to see visualization</p>';
+            return;
+        }
+
+        const mode = vizMode.value;
+        const width = parseInt(vizWidth.value);
+        const view = new DataView(state.buffer);
+        
+        
+        // Firefox-compatible grid setup
+        vizCanvas.className = `viz-canvas viz-mode-${mode}`;
+        vizCanvas.style.display = 'grid';
+        vizCanvas.style.gridTemplateColumns = `repeat(${width}, 1fr)`;
+        vizCanvas.style.gridAutoRows = 'min-content';
+        vizCanvas.style.gap = '0';
+        vizCanvas.style.alignContent = 'start';
+
+        // Use requestAnimationFrame for better Firefox compatibility
+        requestAnimationFrame(() => {
+            switch (mode) {
+                case 'bitmap':
+                    renderBitmapVisualization(view, width);
+                    break;
+                case 'density':
+                    renderDensityVisualization(view, width);
+                    break;
+                case 'entropy':
+                    renderEntropyVisualization(view, width);
+                    break;
+                case 'ascii':
+                    renderAsciiVisualization(view, width);
+                    break;
+            }
+        });
+    }
+
+    function renderBitmapVisualization(view, width) {
+        const fragment = document.createDocumentFragment();
+        
+        for (let i = 0; i < state.totalBytes; i++) {
+            const byte = view.getUint8(i);
+            const pixel = document.createElement('div');
+            pixel.className = 'viz-pixel';
+            pixel.style.backgroundColor = `rgb(${byte}, ${byte}, ${byte})`;
+            pixel.title = `Offset: 0x${i.toString(16).toUpperCase()}, Value: 0x${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+            pixel.addEventListener('click', () => scrollToOffset(i));
+            fragment.appendChild(pixel);
+        }
+        
+        vizCanvas.appendChild(fragment);
+    }
+
+    function renderDensityVisualization(view, width) {
+        const frequencies = new Array(256).fill(0);
+        for (let i = 0; i < state.totalBytes; i++) {
+            frequencies[view.getUint8(i)]++;
+        }
+        const maxFreq = Math.max(...frequencies);
+        
+        const fragment = document.createDocumentFragment();
+
+        for (let i = 0; i < state.totalBytes; i++) {
+            const byte = view.getUint8(i);
+            const density = frequencies[byte] / maxFreq;
+            const pixel = document.createElement('div');
+            pixel.className = 'viz-pixel';
+            const intensity = Math.floor(density * 255);
+            pixel.style.backgroundColor = `rgb(${255-intensity}, ${intensity}, 0)`;
+            pixel.title = `Offset: 0x${i.toString(16).toUpperCase()}, Value: 0x${byte.toString(16).toUpperCase().padStart(2, '0')}, Density: ${(density*100).toFixed(1)}%`;
+            pixel.addEventListener('click', () => scrollToOffset(i));
+            fragment.appendChild(pixel);
+        }
+        
+        vizCanvas.appendChild(fragment);
+    }
+
+    function renderEntropyVisualization(view, width) {
+        const blockSize = 256;
+        const blocks = Math.ceil(state.totalBytes / blockSize);
+        const fragment = document.createDocumentFragment();
+        
+        for (let block = 0; block < blocks; block++) {
+            const start = block * blockSize;
+            const end = Math.min(start + blockSize, state.totalBytes);
+            const entropy = calculateEntropy(view, start, end);
+            
+            for (let i = start; i < end; i++) {
+                const pixel = document.createElement('div');
+                pixel.className = 'viz-pixel';
+                const entropyColor = Math.floor(entropy * 255);
+                pixel.style.backgroundColor = `rgb(${entropyColor}, 0, ${255-entropyColor})`;
+                pixel.title = `Offset: 0x${i.toString(16).toUpperCase()}, Block Entropy: ${entropy.toFixed(3)}`;
+                pixel.addEventListener('click', () => scrollToOffset(i));
+                fragment.appendChild(pixel);
+            }
+        }
+        
+        vizCanvas.appendChild(fragment);
+    }
+
+    function renderAsciiVisualization(view, width) {
+        const fragment = document.createDocumentFragment();
+        
+        for (let i = 0; i < state.totalBytes; i++) {
+            const byte = view.getUint8(i);
+            const pixel = document.createElement('div');
+            pixel.className = 'viz-pixel';
+            
+            if (byte >= 32 && byte <= 126) {
+                pixel.style.backgroundColor = '#00FF00'; // Green for printable ASCII
+            } else if (byte === 0) {
+                pixel.style.backgroundColor = '#000000'; // Black for null
+            } else if (byte < 32) {
+                pixel.style.backgroundColor = '#0000FF'; // Blue for control chars
+            } else {
+                pixel.style.backgroundColor = '#FF0000'; // Red for extended ASCII
+            }
+            
+            pixel.title = `Offset: 0x${i.toString(16).toUpperCase()}, Value: 0x${byte.toString(16).toUpperCase().padStart(2, '0')}, Char: ${getAsciiChar(byte)}`;
+            pixel.addEventListener('click', () => scrollToOffset(i));
+            fragment.appendChild(pixel);
+        }
+        
+        vizCanvas.appendChild(fragment);
+    }
+
+    function calculateEntropy(view, start, end) {
+        const frequencies = new Array(256).fill(0);
+        const total = end - start;
+        
+        for (let i = start; i < end; i++) {
+            frequencies[view.getUint8(i)]++;
+        }
+        
+        let entropy = 0;
+        for (let freq of frequencies) {
+            if (freq > 0) {
+                const probability = freq / total;
+                entropy -= probability * Math.log2(probability);
+            }
+        }
+        
+        return entropy / 8; // Normalize to 0-1 range
+    }
+
+    function scrollToOffset(offset) {
+        const hexInput = state.byteInputs[offset];
+        if (hexInput) {
+            hexInput.focus();
+            hexInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     // Handlers
@@ -164,133 +333,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 const view = new DataView(state.buffer);
                 view.setUint8(byteOffset, byteValue);
                 updateAsciiArea(byteOffset, byteValue);
+                // Debounce visualization updates for better performance
+                if (this.vizUpdateTimeout) clearTimeout(this.vizUpdateTimeout);
+                this.vizUpdateTimeout = setTimeout(renderVisualization, 100);
             }
         }
         updateStatusBar(byteOffset);
     }
 
-    function handleAsciiCharInput(e) {
-        const input = e.target;
-        const rowOffset = parseInt(input.dataset.offset, 10);
-        const cursorPosition = input.selectionStart;
-        const newValue = input.value;
-        
-        // Find the character that was changed
-        let changedChar = null;
-        let changedIndex = -1;
-        for (let i = 0; i < newValue.length; i++) {
-            if (i >= state.bytesPerRow || newValue[i] !== getAsciiChar(new DataView(state.buffer).getUint8(rowOffset + i))) {
-                changedChar = newValue[i];
-                changedIndex = i;
-                break;
-            }
-        }
-
-        // If a change was detected
-        if (changedChar !== null && changedIndex !== -1 && rowOffset + changedIndex < state.totalBytes) {
-            const byteOffset = rowOffset + changedIndex;
-            const charCode = changedChar.charCodeAt(0);
-            
-            const view = new DataView(state.buffer);
-            view.setUint8(byteOffset, charCode);
-            
-            // Update the hex input and ensure the ASCII display is "clean"
-            updateHexInput(byteOffset, charCode);
-        } else if (newValue.length < getCleanAsciiRow(rowOffset).length) {
-            // Handle deletions
-            const deletedIndex = newValue.length;
-            const byteOffset = rowOffset + deletedIndex;
-            if (byteOffset < state.totalBytes) {
-                const view = new DataView(state.buffer);
-                view.setUint8(byteOffset, 0x20); // Replace with space
-                updateHexInput(byteOffset, 0x20);
-            }
-        }
-        
-        // After any change, re-render the clean row and restore cursor
-        const cleanRow = getCleanAsciiRow(rowOffset);
-        input.value = cleanRow;
-        input.selectionStart = input.selectionEnd = cursorPosition;
-
-        updateStatusBar(rowOffset + cursorPosition);
-    }
-
-    function getCleanAsciiRow(rowOffset) {
+    function handleAsciiInput(e, rowOffset) {
+        const textarea = e.target;
+        const rawValue = textarea.value;
         const view = new DataView(state.buffer);
-        let asciiRowText = '';
+        let cleanedValue = '';
+        
         for (let i = 0; i < state.bytesPerRow; i++) {
+            const char = rawValue[i];
             const byteOffset = rowOffset + i;
             if (byteOffset < state.totalBytes) {
-                const byte = view.getUint8(byteOffset);
-                asciiRowText += getAsciiChar(byte);
-            } else {
-                asciiRowText += ' '; // Pad with spaces for incomplete rows
+                const charCode = char ? char.charCodeAt(0) : 0x20; // Default to space
+                view.setUint8(byteOffset, charCode);
+                updateHexInput(byteOffset, charCode);
+                cleanedValue += getAsciiChar(charCode);
             }
         }
-        return asciiRowText.trimEnd(); // Trim trailing spaces for a cleaner look
+        
+        // This ensures the displayed value is always the "clean" representation
+        textarea.value = cleanedValue;
+        // Debounce visualization updates for better performance
+        if (this.vizUpdateTimeout) clearTimeout(this.vizUpdateTimeout);
+        this.vizUpdateTimeout = setTimeout(renderVisualization, 100);
+        updateStatusBar(rowOffset + textarea.selectionStart);
     }
 
-    function handleHexNavigation(e) {
+    function handleNavigation(e) {
         if (e.key.startsWith('Arrow')) {
-            e.preventDefault();
+            const isAsciiInput = e.target.classList.contains('ascii-input');
             let nextOffset = state.activeOffset;
             const bytesPerRow = state.bytesPerRow;
 
-            if (e.key === 'ArrowRight') nextOffset++;
-            else if (e.key === 'ArrowLeft') nextOffset--;
-            else if (e.key === 'ArrowDown') nextOffset += bytesPerRow;
-            else if (e.key === 'ArrowUp') nextOffset -= bytesPerRow;
+            if (e.key === 'ArrowRight') {
+                if (isAsciiInput) {
+                    // Do not navigate out of the ASCII input
+                    return;
+                }
+                nextOffset++;
+            } else if (e.key === 'ArrowLeft') {
+                if (isAsciiInput) {
+                    // Do not navigate out of the ASCII input
+                    return;
+                }
+                nextOffset--;
+            } else if (e.key === 'ArrowDown') {
+                nextOffset += bytesPerRow;
+            } else if (e.key === 'ArrowUp') {
+                nextOffset -= bytesPerRow;
+            } else {
+                return;
+            }
 
             if (nextOffset >= 0 && nextOffset < state.totalBytes) {
-                state.byteInputs[nextOffset].focus();
-            }
-        }
-    }
-
-    function handleAsciiNavigation(e) {
-        if (e.key.startsWith('Arrow')) {
-            const input = e.target;
-            const rowOffset = parseInt(input.dataset.offset, 10);
-            let nextOffset = rowOffset + input.selectionStart;
-            const bytesPerRow = state.bytesPerRow;
-
-            if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                const cursorPosition = input.selectionStart;
-                if (cursorPosition < state.bytesPerRow && nextOffset < state.totalBytes - 1) {
-                     input.selectionStart = input.selectionEnd = cursorPosition + 1;
-                } else if (nextOffset < state.totalBytes - 1) {
-                    const nextAsciiInput = state.asciiInputs[Math.floor((nextOffset + 1) / bytesPerRow)];
-                    if(nextAsciiInput) nextAsciiInput.focus();
-                }
-            }
-            else if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                const cursorPosition = input.selectionStart;
-                if (cursorPosition > 0) {
-                    input.selectionStart = input.selectionEnd = cursorPosition - 1;
-                } else if (nextOffset > 0) {
-                    const prevAsciiInput = state.asciiInputs[Math.floor((nextOffset - 1) / bytesPerRow)];
-                    if(prevAsciiInput) {
-                        prevAsciiInput.focus();
-                        prevAsciiInput.selectionStart = prevAsciiInput.selectionEnd = prevAsciiInput.value.length;
-                    }
-                }
-            }
-            else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                nextOffset += bytesPerRow;
-                if (nextOffset < state.totalBytes) {
-                    const nextInput = state.asciiInputs[Math.floor(nextOffset / bytesPerRow)];
-                    if(nextInput) nextInput.focus();
-                }
-            }
-            else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                nextOffset -= bytesPerRow;
-                if (nextOffset >= 0) {
-                    const nextInput = state.asciiInputs[Math.floor(nextOffset / bytesPerRow)];
-                    if(nextInput) nextInput.focus();
+                const nextInput = isAsciiInput ? state.asciiInputs[Math.floor(nextOffset / bytesPerRow)] : state.byteInputs[nextOffset];
+                if (nextInput) {
+                    nextInput.focus();
                 }
             }
         }
@@ -323,9 +429,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateAsciiArea(byteOffset, byteValue) {
         const rowIndex = Math.floor(byteOffset / state.bytesPerRow);
+        const colIndex = byteOffset % state.bytesPerRow;
         const input = state.asciiInputs[rowIndex];
         if (input) {
-            input.value = getCleanAsciiRow(rowIndex * state.bytesPerRow);
+            const char = getAsciiChar(byteValue);
+            input.value = input.value.substring(0, colIndex) + char + input.value.substring(colIndex + 1);
         }
     }
 
