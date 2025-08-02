@@ -3,36 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Hex Editor</title>
+    <title>Retro Hex Editor & Steganography Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- New Text-to-Bitmap Creator Window -->
+    <div class="window" style="margin-bottom: 20px;">
+        <div class="title-bar">
+            <div class="title-bar-text">Raw Text-to-Bitmap Converter</div>
+        </div>
+        <div class="window-body">
+            <p>Enter text to convert into raw, headerless, monochrome bitmap data. The output will be gibberish in a text editor but will form an image in the visualizer.</p>
+            <textarea id="textInput" rows="4" style="width: 98%; margin-bottom: 10px; font-family: 'Courier New', monospace; border: 1px inset #808080;" placeholder="HELLO WORLD"></textarea>
+            <div class="controls-container" style="justify-content: flex-start; gap: 15px; align-items: center;">
+                <div>
+                    <label for="imageWidth">Width:</label>
+                    <input type="number" id="imageWidth" value="64" style="width: 60px; padding: 2px;">
+                </div>
+                 <div>
+                    <label for="imageHeight">Height:</label>
+                    <input type="number" id="imageHeight" value="16" style="width: 60px; padding: 2px;">
+                </div>
+                <button id="generateButton">Generate & Load into Editor</button>
+            </div>
+             <p id="generate-status" style="font-size: 11px; color: #000080; min-height: 1em;"></p>
+        </div>
+    </div>
+
+    <!-- Original Hex Editor Window -->
     <div class="window">
         <div class="title-bar">
             <div class="title-bar-text">Retro Hex Editor</div>
             <div class="title-bar-controls">
-                <button>-</button>
-                <button>&#9723;</button>
-                <button>x</button>
+                <button aria-label="Minimize">-</button>
+                <button aria-label="Maximize">&#9723;</button>
+                <button aria-label="Close">x</button>
             </div>
         </div>
         <div class="window-body">
-            <div id="visualization-explanation" style="border: 1px solid #808080; padding: 10px; margin-bottom: 15px; background-color: #f0f0f0;">
-                <h4 style="margin-top: 0;">Visualization Modes</h4>
-                <ul>
-                    <li><strong>Bitmap:</strong> Renders each byte as a grayscale pixel.</li>
-                    <li><strong>Byte Density:</strong> Highlights frequently occurring bytes in red and less common ones in green.</li>
-                    <li><strong>Entropy:</strong> Displays data randomness: high entropy (random) in blue, low entropy (structured) in red.</li>
-                    <li><strong>ASCII Map:</strong> Colors different ASCII character types: printable (green), control (blue), extended (red), and null (black).</li>
-                </ul>
-            </div>
-            
-            <p style="text-align: center;">Select a file, edit the hex or character values, and save your changes.</p>
-    
-            <div id="controls-container" class="controls-container">
-                <input type="file" id="fileInput"/>
+             <div id="controls-container" class="controls-container">
+                <input type="file" id="fileInput" style="display: none;"/>
                 <button id="loadButton">Load File</button>
-                <button id="saveButton" disabled>Save File</button>
+                <button id="saveButton" disabled>Save As...</button>
             </div>
 
             <div class="main-content">
@@ -42,27 +54,15 @@
                         <div style="overflow-x: auto;">
                             <div id="headerRow" class="hex-editor-grid" style="border-bottom: 1px solid black; padding-bottom: 5px;">
                                 <div class="hex-editor-grid-header">Address</div>
-                                <div class="hex-editor-grid-header">00</div>
-                                <div class="hex-editor-grid-header">01</div>
-                                <div class="hex-editor-grid-header">02</div>
-                                <div class="hex-editor-grid-header">03</div>
-                                <div class="hex-editor-grid-header">04</div>
-                                <div class="hex-editor-grid-header">05</div>
-                                <div class="hex-editor-grid-header">06</div>
-                                <div class="hex-editor-grid-header">07</div>
-                                <div class="hex-editor-grid-header">08</div>
-                                <div class="hex-editor-grid-header">09</div>
-                                <div class="hex-editor-grid-header">0A</div>
-                                <div class="hex-editor-grid-header">0B</div>
-                                <div class="hex-editor-grid-header">0C</div>
-                                <div class="hex-editor-grid-header">0D</div>
-                                <div class="hex-editor-grid-header">0E</div>
-                                <div class="hex-editor-grid-header">0F</div>
+                                <div class="hex-editor-grid-header">00</div><div class="hex-editor-grid-header">01</div><div class="hex-editor-grid-header">02</div><div class="hex-editor-grid-header">03</div>
+                                <div class="hex-editor-grid-header">04</div><div class="hex-editor-grid-header">05</div><div class="hex-editor-grid-header">06</div><div class="hex-editor-grid-header">07</div>
+                                <div class="hex-editor-grid-header">08</div><div class="hex-editor-grid-header">09</div><div class="hex-editor-grid-header">0A</div><div class="hex-editor-grid-header">0B</div>
+                                <div class="hex-editor-grid-header">0C</div><div class="hex-editor-grid-header">0D</div><div class="hex-editor-grid-header">0E</div><div class="hex-editor-grid-header">0F</div>
                                 <div class="hex-editor-grid-header"></div>
                                 <div class="hex-editor-grid-header">ASCII</div>
                             </div>
                             <div id="editorContent" style="min-width: max-content;">
-                                <p style="text-align: center;">Select a file to begin.</p>
+                                <p style="text-align: center;">Generate an image or load a file to begin.</p>
                             </div>
                         </div>
                     </div>
@@ -72,24 +72,24 @@
                     <div class="section-title">Data Visualization</div>
                     <div class="section-content">
                         <div class="viz-controls">
-                            <label>Mode:</label>
+                            <label for="vizMode">Mode:</label>
                             <select id="vizMode">
-                                <option value="bitmap">Bitmap</option>
+                                <option value="bitmap" selected>Bitmap</option>
                                 <option value="density">Byte Density</option>
                                 <option value="entropy">Entropy</option>
                                 <option value="ascii">ASCII Map</option>
                             </select>
-                            <label>Width:</label>
+                            <label for="vizWidth">Width:</label>
                             <select id="vizWidth">
                                 <option value="16">16</option>
-                                <option value="32" selected>32</option>
-                                <option value="64">64</option>
+                                <option value="32">32</option>
+                                <option value="64" selected>64</option>
                                 <option value="128">128</option>
                             </select>
                         </div>
                         <div class="viz-canvas-container">
                             <div id="vizCanvas" class="viz-canvas">
-                                <p style="text-align: center; color: #808080; margin-top: 50px;">Load a file to see visualization</p>
+                                <p style="text-align: center; color: #808080; margin-top: 50px;">Generate or load a file to see visualization</p>
                             </div>
                         </div>
                     </div>
@@ -99,8 +99,8 @@
             <div class="status-bar">
                 <span id="status-filename" class="status-bar-item">No file loaded</span>
                 <span id="status-size" class="status-bar-item">Size: 0 bytes</span>
-                <span id="status-cursor" class="status-bar-item">Offset: 00000000</span>
-                <span id="status-value" class="status-bar-item">Value: 00 (0x00)</span>
+                <span id="status-cursor" class="status-bar-item">Offset: -</span>
+                <span id="status-value" class="status-bar-item">Value: -</span>
             </div>
         </div>
     </div>
