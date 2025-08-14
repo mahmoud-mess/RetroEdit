@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Hex Editor & Steganography Tool</title>
+    <title>Professional Retro Hex Editor</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- New Text-to-Bitmap Creator Window -->
-    <div class="window" style="margin-bottom: 20px;">
+    <!-- Text-to-Bitmap Creator Window -->
+    <div class="window">
         <div class="title-bar">
             <div class="title-bar-text">Raw Text-to-Bitmap Converter</div>
+            <div class="title-bar-controls">
+                <button aria-label="Minimize">-</button>
+                <button aria-label="Maximize">&#9723;</button>
+                <button aria-label="Close">x</button>
+            </div>
         </div>
         <div class="window-body">
             <p>Enter text to convert into raw, headerless, monochrome bitmap data. The output will be gibberish in a text editor but will form an image in the visualizer.</p>
@@ -20,20 +25,29 @@
                     <label for="imageWidth">Width:</label>
                     <input type="number" id="imageWidth" value="64" style="width: 60px; padding: 2px;">
                 </div>
-                 <div>
+                <div>
                     <label for="imageHeight">Height:</label>
                     <input type="number" id="imageHeight" value="16" style="width: 60px; padding: 2px;">
                 </div>
+                <div>
+                    <label for="fontSize">Font Size:</label>
+                    <select id="fontSize">
+                        <option value="8">8px</option>
+                        <option value="10" selected>10px</option>
+                        <option value="12">12px</option>
+                        <option value="14">14px</option>
+                    </select>
+                </div>
                 <button id="generateButton">Generate & Load into Editor</button>
             </div>
-             <p id="generate-status" style="font-size: 11px; color: #000080; min-height: 1em;"></p>
+            <p id="generate-status" style="font-size: 11px; color: #000080; min-height: 1em;"></p>
         </div>
     </div>
 
-    <!-- Original Hex Editor Window -->
+    <!-- Main Hex Editor Window -->
     <div class="window">
         <div class="title-bar">
-            <div class="title-bar-text">Retro Hex Editor</div>
+            <div class="title-bar-text">Professional Hex Editor</div>
             <div class="title-bar-controls">
                 <button aria-label="Minimize">-</button>
                 <button aria-label="Maximize">&#9723;</button>
@@ -41,18 +55,25 @@
             </div>
         </div>
         <div class="window-body">
-             <div id="controls-container" class="controls-container">
+            <div class="controls-container">
                 <input type="file" id="fileInput" style="display: none;"/>
                 <button id="loadButton">Load File</button>
                 <button id="saveButton" disabled>Save As...</button>
+                <button id="newButton">New File</button>
+                <button id="findButton" disabled>Find</button>
+                <button id="undoButton" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+                <button id="redoButton" disabled title="Redo (Ctrl+Y)">↷ Redo</button>
+                <button id="copyButton" disabled title="Copy (Ctrl+C)">Copy</button>
+                <button id="pasteButton" disabled title="Paste (Ctrl+V)">Paste</button>
             </div>
 
             <div class="main-content">
                 <div class="hex-editor-section">
                     <div class="section-title">Hex Editor</div>
                     <div class="section-content">
+                        <div class="edit-indicator" id="editIndicator">No changes</div>
                         <div style="overflow-x: auto;">
-                            <div id="headerRow" class="hex-editor-grid" style="border-bottom: 1px solid black; padding-bottom: 5px;">
+                            <div id="headerRow" class="hex-editor-grid" style="border-bottom: 1px solid black; padding-bottom: 5px; position: sticky; top: 0; background: white; z-index: 10;">
                                 <div class="hex-editor-grid-header">Address</div>
                                 <div class="hex-editor-grid-header">00</div><div class="hex-editor-grid-header">01</div><div class="hex-editor-grid-header">02</div><div class="hex-editor-grid-header">03</div>
                                 <div class="hex-editor-grid-header">04</div><div class="hex-editor-grid-header">05</div><div class="hex-editor-grid-header">06</div><div class="hex-editor-grid-header">07</div>
@@ -62,8 +83,15 @@
                                 <div class="hex-editor-grid-header">ASCII</div>
                             </div>
                             <div id="editorContent" style="min-width: max-content;">
-                                <p style="text-align: center;">Generate an image or load a file to begin.</p>
+                                <p style="text-align: center; margin: 50px 0;">Generate an image or load a file to begin.</p>
                             </div>
+                        </div>
+                        <div class="data-inspector" id="dataInspector">
+                            <div style="font-weight: bold; margin-bottom: 5px;">Data Inspector</div>
+                            <div class="inspector-row"><span>Byte:</span><span id="inspByte">-</span></div>
+                            <div class="inspector-row"><span>Int16:</span><span id="inspInt16">-</span></div>
+                            <div class="inspector-row"><span>Int32:</span><span id="inspInt32">-</span></div>
+                            <div class="inspector-row"><span>Float:</span><span id="inspFloat">-</span></div>
                         </div>
                     </div>
                 </div>
@@ -101,9 +129,40 @@
                 <span id="status-size" class="status-bar-item">Size: 0 bytes</span>
                 <span id="status-cursor" class="status-bar-item">Offset: -</span>
                 <span id="status-value" class="status-bar-item">Value: -</span>
+                <span id="status-selection" class="status-bar-item">Selection: -</span>
             </div>
         </div>
     </div>
+
+    <!-- Find Dialog -->
+    <div id="findDialog" class="find-dialog window">
+        <div class="title-bar">
+            <div class="title-bar-text">Find</div>
+            <div class="title-bar-controls">
+                <button id="findCloseButton">x</button>
+            </div>
+        </div>
+        <div class="window-body">
+            <div class="find-row">
+                <label for="findInput">Find:</label>
+                <input type="text" id="findInput" class="find-input" placeholder="Enter hex (20 41) or text">
+            </div>
+            <div class="find-row">
+                <input type="radio" id="findHex" name="findType" value="hex" checked>
+                <label for="findHex">Hex</label>
+                <input type="radio" id="findAscii" name="findType" value="ascii">
+                <label for="findAscii">ASCII</label>
+                <input type="checkbox" id="caseSensitive">
+                <label for="caseSensitive">Case sensitive</label>
+            </div>
+            <div class="find-row">
+                <button id="findNextButton">Find Next</button>
+                <button id="findPrevButton">Find Previous</button>
+                <button id="findAllButton">Find All</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ body {
     background-color: #008080;
     color: black;
     padding: 20px;
+    margin: 0;
 }
 
 /* Main Container - The "Window" */
@@ -15,6 +16,7 @@ body {
     border-right: 2px solid #808080;
     padding: 2px;
     box-shadow: 1px 1px 0 black;
+    margin-bottom: 20px;
 }
 
 .window-body {
@@ -28,7 +30,7 @@ body {
 
 /* Title Bar */
 .title-bar {
-    background: linear-gradient(to right, #000080, #1084d0);
+    background-color: #000080;
     color: white;
     font-weight: bold;
     padding: 3px 5px;
@@ -81,7 +83,12 @@ button:active {
     border-bottom: 2px solid #FFFFFF;
     border-right: 2px solid #FFFFFF;
     box-shadow: inset 1px 1px 0 black;
-    padding: 5px 9px 3px 11px; /* Shifting effect on click */
+    padding: 5px 9px 3px 11px;
+}
+
+button:disabled {
+    color: #808080;
+    cursor: not-allowed;
 }
 
 input, textarea {
@@ -101,17 +108,19 @@ select {
     align-items: center;
     justify-content: center;
     margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .main-content {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    flex-wrap: wrap;
     gap: 10px;
     margin-top: 10px;
 }
 
 .hex-editor-section {
-    flex: 1 1 500px; /* Flex-grow, flex-shrink, basis */
+    flex: 1 1 500px;
     min-width: 450px;
 }
 
@@ -136,6 +145,7 @@ select {
     height: 400px;
     overflow: auto;
     padding: 2px;
+    position: relative;
 }
 
 .status-bar {
@@ -146,28 +156,33 @@ select {
     padding: 4px;
     margin-top: 10px;
     font-size: 11px;
+    flex-wrap: wrap;
 }
 
 .status-bar-item {
     border: 1px inset #FFFFFF;
     padding: 0 5px;
+    margin: 1px;
 }
 
 /* Hex Editor Grid */
 .hex-editor-grid {
     display: grid;
-    grid-template-columns: 70px repeat(16, 22px) 10px 16ch;
+    grid-template-columns: 80px repeat(16, 24px) 10px 16ch;
     gap: 1px;
     font-size: 13px;
     padding: 2px;
+    line-height: 1.2;
 }
 
 .hex-editor-grid-header {
     font-weight: bold;
     text-align: center;
+    padding: 2px;
+    background-color: #E0E0E0;
 }
 
-.address, .hex-input, .ascii-input {
+.address, .hex-input, .ascii-input, .ascii-char {
     font-family: 'Courier New', monospace;
     border: 1px solid #ddd;
     background-color: #FFFFFF;
@@ -179,8 +194,8 @@ select {
 }
 
 .address {
-    background-color: #C0C0C0;
-    border: none;
+    background-color: #E0E0E0;
+    border: 1px solid #C0C0C0;
     text-align: right;
     color: black;
     font-weight: normal;
@@ -189,19 +204,41 @@ select {
 
 .hex-input {
     width: 100%;
-    border: 1px solid transparent;
+    border: 1px solid #E0E0E0;
+    cursor: text;
 }
 
-.ascii-input {
-    width: 100%;
+.ascii-char {
+    width: 1ch;
+    display: inline-block;
+    text-align: center;
     border: 1px solid transparent;
-    text-align: left;
+    cursor: text;
+    margin: 0;
+    padding: 1px 0;
+}
+
+.ascii-row {
+    display: flex;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #E0E0E0;
+    background-color: #FFFFFF;
     padding: 1px 2px;
 }
 
-.hex-input:focus, .ascii-input:focus {
-    outline: 1px solid #000080;
+.hex-input:focus, .ascii-char:focus {
+    outline: 2px solid #000080;
     background-color: #f0f8ff;
+    border-color: #000080;
+}
+
+.hex-input.selected, .ascii-char.selected {
+    background-color: #000080;
+    color: white;
+}
+
+.hex-input.modified, .ascii-char.modified {
+    background-color: #ffff99;
 }
 
 .separator {
@@ -209,9 +246,52 @@ select {
     background-color: #C0C0C0;
 }
 
-.active-cell {
-    background-color: #000080;
-    color: white;
+/* Find Dialog */
+.find-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background-color: #C0C0C0;
+    border: 2px outset #C0C0C0;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    padding: 10px;
+    display: none;
+}
+
+.find-dialog.show {
+    display: block;
+}
+
+.find-row {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+    gap: 5px;
+}
+
+.find-input {
+    flex: 1;
+    padding: 2px;
+}
+
+/* Data Inspector */
+.data-inspector {
+    background-color: #F0F0F0;
+    border: 1px solid #C0C0C0;
+    padding: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    margin-top: 5px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.inspector-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 1px 0;
 }
 
 /* Visualization Styles */
@@ -223,6 +303,7 @@ select {
     gap: 10px;
     align-items: center;
     font-size: 11px;
+    flex-wrap: wrap;
 }
 
 .viz-canvas-container {
@@ -235,7 +316,7 @@ select {
 .viz-canvas {
     display: grid;
     gap: 0;
-    image-rendering: pixelated; /* Ensures sharp pixels */
+    image-rendering: pixelated;
     width: 100%;
     height: auto;
     line-height: 0;
@@ -243,6 +324,47 @@ select {
 
 .viz-pixel {
     width: 100%;
-    padding-bottom: 100%; /* Creates a square aspect ratio */
+    padding-bottom: 100%;
     display: block;
+    cursor: crosshair;
+}
+
+.viz-pixel:hover {
+    box-shadow: inset 0 0 0 1px red;
+}
+
+/* Undo/Redo indicator */
+.edit-indicator {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 10px;
+    color: #666;
+    background: rgba(255,255,255,0.8);
+    padding: 2px 4px;
+    border-radius: 2px;
+}
+
+/* Selection highlight */
+.selection-highlight {
+    background-color: #000080 !important;
+    color: white !important;
+}
+
+/* Error states */
+.error {
+    background-color: #ffcccc !important;
+    border-color: #ff0000 !important;
+}
+
+/* Loading state */
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.9);
+    padding: 20px;
+    border: 2px outset #C0C0C0;
+    z-index: 100;
 }
